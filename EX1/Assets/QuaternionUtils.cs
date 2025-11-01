@@ -50,9 +50,9 @@ public class QuaternionUtils
         Vector4 qz = AxisAngle(Vector3.forward, euler.z);
 
         Vector4[] quaternions = { qx, qy, qz };
-        Vector4 result = quaternions[rotationOrder.z];
+        Vector4 result = quaternions[rotationOrder.x];
         result = Multiply(result, quaternions[rotationOrder.y]);
-        result = Multiply(result, quaternions[rotationOrder.x]);
+        result = Multiply(result, quaternions[rotationOrder.z]);
         return result;
     }
 
@@ -87,10 +87,10 @@ public class QuaternionUtils
             );
         }
 
-        // Apply the SLERP formula: sin((1-t)θ)/sinθ * p + sin(tθ)/sinθ * q
+        // Apply the SLERP formula: sin((1-t)θ)/sinθ * p + sin(tθ)/sinθ * q where theta is half the angle between p and q
         float coeff1 = (float)Math.Sin((1.0f - t) * theta) / sinTheta;
         float coeff2 = (float)Math.Sin(t * theta) / sinTheta;
-
+        
         return new Vector4(
             q1.x * coeff1 + q2.x * coeff2,
             q1.y * coeff1 + q2.y * coeff2,

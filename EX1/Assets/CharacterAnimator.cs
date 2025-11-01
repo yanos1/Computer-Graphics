@@ -32,25 +32,21 @@ public class CharacterAnimator : MonoBehaviour
     // Returns a Matrix4x4 representing a rotation aligning the up direction of an object with the given v
     public Matrix4x4 RotateTowardsVector(Vector3 v)
     {
-        // Normalize the target vector
         Vector3 target = v.normalized;
         Vector3 up = Vector3.up;
 
-        // If the target is already aligned with up, return identity
         if (Vector3.Dot(target, up) > 0.9999f)
         {
             return Matrix4x4.identity;
         }
 
-        // If the target is opposite to up, rotate 180 degrees around X axis
         if (Vector3.Dot(target, up) < -0.9999f)
         {
             return MatrixUtils.RotateX(180f);
         }
 
-        // Calculate Euler angles (ZYX order) to rotate from up vector (0,1,0) to target vector
 
-        // Calculate yaw angle (rotation around Y axis)
+        // Calculate rotation around Y axis
         // Project target onto XZ plane 
         Vector3 targetXZ = new Vector3(target.x, 0, target.z);
         float yawAngle = 0f;
@@ -60,20 +56,14 @@ public class CharacterAnimator : MonoBehaviour
             yawAngle = Mathf.Atan2(targetXZ.x, targetXZ.z) * Mathf.Rad2Deg;
         }
 
-        // Calculate pitch angle (rotation around X axis) 
+        // Calculate rotation around X axis 
         float pitchAngle = -Mathf.Asin(Mathf.Clamp(target.y, -1f, 1f)) * Mathf.Rad2Deg + 90f;
 
-        // Calculate roll angle (rotation around Z axis)
-        // For aligning up vector to target, we typically don't need roll, but for completeness:
-        float rollAngle = 0f; // Can be adjusted based on specific requirements
-
-        // Apply rotations in ZYX order (roll, yaw, pitch)
-        Matrix4x4 rollMatrix = MatrixUtils.RotateZ(rollAngle);
         Matrix4x4 yawMatrix = MatrixUtils.RotateY(yawAngle);
         Matrix4x4 pitchMatrix = MatrixUtils.RotateX(pitchAngle);
 
-        // Combine in order: Z * Y * X (roll * yaw * pitch)
-        return rollMatrix * yawMatrix * pitchMatrix;
+        // Combine in order: Y * X
+        return yawMatrix * pitchMatrix;
     }
 
     // Creates a Cylinder GameObject between two given points in 3D space
@@ -97,10 +87,10 @@ public class CharacterAnimator : MonoBehaviour
     {
         // create base sphere game object at parentPosition + joint.offset
         GameObject jointObj = new GameObject(joint.name);
-        
+
         GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.transform.parent = jointObj.gameObject.transform;
-        
+
         Matrix4x4 translationMatrix = MatrixUtils.Translate(parentPosition + joint.offset);
         Matrix4x4 scaleMatrix = MatrixUtils.Scale(GetJointScaleFactor(joint) * Vector3.one);
         MatrixUtils.ApplyTransform(sphere, scaleMatrix);
@@ -131,11 +121,7 @@ public class CharacterAnimator : MonoBehaviour
         // Compose the global transform
         if (joint == data.rootJoint)
         {
-            // apply position channels for root joint
-            T_R_local = MatrixUtils.Translate(new Vector3(
-                currFrameData[joint.positionChannels.x],
-                currFrameData[joint.positionChannels.y],
-                currFrameData[joint.positionChannels.z])) * T_R_local;
+            T_R_local = TranslateJointWithLerp(joint, rotationMatrix);
         }
 
         Matrix4x4 globalTransform = parentTransform * T_R_local;
@@ -148,8 +134,45 @@ public class CharacterAnimator : MonoBehaviour
         foreach (BVHJoint child in joint.children) TransformJoint(child, globalTransform);
     }
 
+    private Matrix4x4 TranslateJointWithLerp(BVHJoint joint, Matrix4x4 T_R_local)
+    {
+        if (interpolate)
+        {
+            return MatrixUtils.Translate(new Vector3(
+                Mathf.Lerp(currFrameData[joint.positionChannels.x], nextFrameData[joint.positionChannels.x], t),
+                Mathf.Lerp(currFrameData[joint.positionChannels.y], nextFrameData[joint.positionChannels.y], t),
+                Mathf.Lerp(currFrameData[joint.positionChannels.z], nextFrameData[joint.positionChannels.z], t)
+            )) * T_R_local;
+        }
+
+        return MatrixUtils.Translate(new Vector3(
+            currFrameData[joint.positionChannels.x],
+            currFrameData[joint.positionChannels.y],
+            currFrameData[joint.positionChannels.z])) * T_R_local;
+    }
+
     private Matrix4x4 CreateRotationMatrix(BVHJoint joint)
     {
+        if (!interpolate)
+        {
+            // slerp rotation using quaternions
+            Vector3 currEuler = new Vector3(
+                currFrameData[joint.rotationChannels.x],
+                currFrameData[joint.rotationChannels.y],
+                currFrameData[joint.rotationChannels.z]
+            );
+            Vector3 nextEuler = new Vector3(
+                nextFrameData[joint.rotationChannels.x],
+                nextFrameData[joint.rotationChannels.y],
+                nextFrameData[joint.rotationChannels.z]
+            );
+            Vector4 currQuat = QuaternionUtils.FromEuler(currEuler, joint.rotationOrder);
+            Vector4 nextQuat = QuaternionUtils.FromEuler(nextEuler, joint.rotationOrder);
+            Vector4 lerpedQuat = QuaternionUtils.Slerp(currQuat, nextQuat, t);
+
+            return MatrixUtils.RotateFromQuaternion(lerpedQuat);
+        }
+
         Matrix4x4[] matrixList =
         {
             MatrixUtils.RotateX(currFrameData[joint.rotationChannels.x]),
@@ -188,8 +211,7 @@ public class CharacterAnimator : MonoBehaviour
     // Returns the proportion of time elapsed between the last frame and the next one, between 0 and 1
     public float GetFrameIntervalTime(float time)
     {
-        // Your code here
-        return 0;
+        return (time % data.frameLength) / data.frameLength;
     }
 
     // Update is called once per frame
@@ -199,7 +221,9 @@ public class CharacterAnimator : MonoBehaviour
         if (animate)
         {
             int currFrame = GetFrameNumber(time);
+            t = GetFrameIntervalTime(time);
             currFrameData = data.keyframes[currFrame];
+            nextFrameData = data.keyframes[(currFrame + 1) % data.numFrames];
             TransformJoint(data.rootJoint, Matrix4x4.identity);
         }
     }

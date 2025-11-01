@@ -153,7 +153,7 @@ public class CharacterAnimator : MonoBehaviour
 
     private Matrix4x4 CreateRotationMatrix(BVHJoint joint)
     {
-        if (!interpolate)
+        if (interpolate)
         {
             // slerp rotation using quaternions
             Vector3 currEuler = new Vector3(

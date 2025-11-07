@@ -121,7 +121,7 @@ public class CharacterAnimator : MonoBehaviour
         // Compose the global transform
         if (joint == data.rootJoint)
         {
-            T_R_local = TranslateJointWithLerp(joint, rotationMatrix);
+            T_R_local = TranslateJointWithOptionalLerp(joint, rotationMatrix);
         }
 
         Matrix4x4 globalTransform = parentTransform * T_R_local;
@@ -134,7 +134,7 @@ public class CharacterAnimator : MonoBehaviour
         foreach (BVHJoint child in joint.children) TransformJoint(child, globalTransform);
     }
 
-    private Matrix4x4 TranslateJointWithLerp(BVHJoint joint, Matrix4x4 T_R_local)
+    private Matrix4x4 TranslateJointWithOptionalLerp(BVHJoint joint, Matrix4x4 T_R_local)
     {
         if (interpolate)
         {
@@ -173,32 +173,15 @@ public class CharacterAnimator : MonoBehaviour
             return MatrixUtils.RotateFromQuaternion(lerpedQuat);
         }
 
-        Matrix4x4[] matrixList =
-        {
-            MatrixUtils.RotateX(currFrameData[joint.rotationChannels.x]),
-            MatrixUtils.RotateY(currFrameData[joint.rotationChannels.y]),
-            MatrixUtils.RotateZ(currFrameData[joint.rotationChannels.z]),
-        };
+        Matrix4x4[] matrixList = { Matrix4x4.identity, Matrix4x4.identity, Matrix4x4.identity };
 
-        return matrixList[joint.rotationOrder.x] *
-               matrixList[joint.rotationOrder.y] *
-               matrixList[joint.rotationOrder.z];
-    }
+        matrixList[joint.rotationOrder.x] = MatrixUtils.RotateX(currFrameData[joint.rotationChannels.x]);
+        matrixList[joint.rotationOrder.y] = MatrixUtils.RotateY(currFrameData[joint.rotationChannels.y]);
+        matrixList[joint.rotationOrder.z] = MatrixUtils.RotateZ(currFrameData[joint.rotationChannels.z]);
 
-
-    // assign the entries X=0, Y=1, Z=2 to a list in the order specified by joint.rotationOrder
-    private static List<string> Vector3Int2List(BVHJoint joint)
-    {
-        // initialize list of strings
-        string[] axes = { "X", "Y", "Z" };
-        List<string> rotationOrder = new List<string>
-        {
-            axes[joint.rotationOrder.x],
-            axes[joint.rotationOrder.y],
-            axes[joint.rotationOrder.z]
-        };
-
-        return rotationOrder;
+        return matrixList[0] *
+               matrixList[1] *
+               matrixList[2];
     }
 
 

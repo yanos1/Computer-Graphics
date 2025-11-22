@@ -65,10 +65,9 @@ public class MeshData
     }
 
 
-    // can be optimised according to chat gpt
     public void MakeFlatShaded()
     {
-        Dictionary<int, List<int>> vertToTriangle = new Dictionary<int, List<int>>();
+        HashSet<Vector3> localVertices = new HashSet<Vector3>();
 
         for (int triStart = 0; triStart < triangles.Count; triStart += numVerteciesPerTriangle)
         {
@@ -76,47 +75,29 @@ public class MeshData
             int v1 = triangles[triStart + 1];
             int v2 = triangles[triStart + 2];
 
-            void Add(int vertexIndex)
-            {
-                if (!vertToTriangle.TryGetValue(vertexIndex, out var triList))
-                {
-                    triList = new List<int>();
-                    vertToTriangle[vertexIndex] = triList;
-                }
+            Vector3 vert0 = vertices[v0];
+            Vector3 vert1 = vertices[v1];
+            Vector3 vert2 = vertices[v2];
 
-                triList.Add(triStart); // store triangle's starting index
+            if (!localVertices.Add(vert0))
+            {
+                vertices.Add(vert0);
+                int newIndex = vertices.Count - 1;
+                triangles[triStart] = newIndex;
             }
 
-            Add(v0);
-            Add(v1);
-            Add(v2);
-        }
-
-        foreach ((int vertexIndex, List<int> trianglesAppearace) in vertToTriangle)
-        {
-            if (trianglesAppearace.Count <= 1) continue;
-
-            var current = vertices[vertexIndex];
-            bool isFirst = true;
-            foreach (var triangle in trianglesAppearace)
+            if (!localVertices.Add(vert1))
             {
-                if (isFirst)
-                {
-                    isFirst = false;
-                    continue;
-                }
-
-                vertices.Add(current);
-
-                int t0 = triangles[triangle];
-                int t1 = triangles[triangle + 1];
-                int t2 = triangles[triangle + 2];
-
+                vertices.Add(vert1);
                 int newIndex = vertices.Count - 1;
+                triangles[triStart + 1] = newIndex;
+            }
 
-                if (t0 == vertexIndex) triangles[triangle]     = newIndex;
-                if (t1 == vertexIndex) triangles[triangle + 1] = newIndex;
-                if (t2 == vertexIndex) triangles[triangle + 2] = newIndex;
+            if (!localVertices.Add(vert2))
+            {
+                vertices.Add(vert2);
+                int newIndex = vertices.Count - 1;
+                triangles[triStart + 2] = newIndex;
             }
         }
     }

@@ -11,46 +11,71 @@
     {
         Pass
         {
-            Tags { "LightMode" = "ForwardBase" } 
+            Tags
+            {
+                "LightMode" = "ForwardBase"
+            }
 
             CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+            #include "Lighting.cginc"
 
-                #pragma vertex vert
-                #pragma fragment frag
-                #include "UnityCG.cginc"
-                #include "Lighting.cginc"
+            // Declare used properties
+            uniform fixed4 _DiffuseColor;
+            uniform fixed4 _SpecularColor;
+            uniform fixed4 _AmbientColor;
+            uniform float _Shininess;
 
-                // Declare used properties
-                uniform fixed4 _DiffuseColor;
-                uniform fixed4 _SpecularColor;
-                uniform fixed4 _AmbientColor;
-                uniform float _Shininess;
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float3 normal : NORMAL;
+            };
 
-                struct appdata
-                { 
-                    float4 vertex : POSITION;
-                    float3 normal : NORMAL;
-                };
-
-                struct v2f
-                {
-                    float4 pos : SV_POSITION;
-                };
-
-
-                v2f vert (appdata input)
-                {
-                    v2f output;
-                    output.pos = UnityObjectToClipPos(input.vertex);
-                    return output;
-                }
+            struct v2f
+            {
+                float4 pos : SV_POSITION;
+                fixed4 color : COLOR;
+            };
 
 
-                fixed4 frag (v2f input) : SV_Target
-                {
-                    return fixed4(0, 0, 1.0, 1.0);
-                }
+            v2f vert(appdata input)
+            {
+                v2f output;
+                output.pos = UnityObjectToClipPos(input.vertex);
+                
+                float3 worldPos = mul(unity_ObjectToWorld, input.vertex).xyz;
+                float3 worldNormal = UnityObjectToWorldNormal(input.normal);
 
+                worldNormal = normalize(worldNormal);
+
+                float3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
+
+                float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+
+                float3 halfDir = normalize(lightDir + viewDir);
+
+                float NdotL = max(0.0, dot(worldNormal, lightDir));
+                fixed3 diffuse = _DiffuseColor.rgb * _LightColor0.rgb * NdotL;
+
+                float NdotH = max(0.0, dot(worldNormal, halfDir));
+                float spec = pow(NdotH, _Shininess);
+                fixed3 specular = _SpecularColor.rgb * _LightColor0.rgb * spec;
+
+                fixed3 ambient = _AmbientColor.rgb;
+
+                fixed3 finalColor = ambient + diffuse + specular;
+                output.color = fixed4(finalColor, 1.0);
+                return output;
+            }
+
+
+            fixed4 frag(v2f input) : SV_Target
+            {
+                return input.color;
+            }
             ENDCG
         }
     }

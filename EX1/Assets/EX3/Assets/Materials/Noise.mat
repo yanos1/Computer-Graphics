@@ -26,8 +26,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _FillWithRed: 0
-    - _NoiseScale: 10
-    - _NoiseType: 0
+    - _NoiseScale: 8.4
+    - _NoiseType: 1
     - _isToggled: 0
     m_Colors: []
   m_BuildTextureStacks: []

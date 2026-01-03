@@ -48,7 +48,31 @@ void intersectPlane(Ray ray, inout RayHit bestHit, Material material, float3 c, 
 // The material returned is either m1 or m2 in a way that creates a checkerboard pattern 
 void intersectPlaneCheckered(Ray ray, inout RayHit bestHit, Material m1, Material m2, float3 c, float3 n)
 {
-    // Your implementation
+    float dn = dot(ray.direction, n);
+    if (abs(dn) < EPSILON) return;
+    float t = dot(-(ray.origin - c), n) / dn;
+    if (t < EPSILON || t >= bestHit.distance) return;
+
+    float3 p = ray.origin + t * ray.direction;
+    float3 localPos = p - c;
+
+    int checkX = floor(localPos.x);
+    int checkZ = floor(localPos.z);
+    bool isEven = (checkX + checkZ) % 2 == 0;
+    Material material;
+    if (isEven)
+    {
+        material = m1;
+    }
+    else
+    {
+        material = m2;
+    }
+
+    bestHit.distance = t;
+    bestHit.position = p;
+    bestHit.normal = normalize(n);
+    bestHit.material = material;
 }
 
 
@@ -89,7 +113,27 @@ void intersectTriangle(Ray ray, inout RayHit bestHit, Material material, float3 
 void intersectCircle(Ray ray, inout RayHit bestHit, Material material, float4 circle, float3 n,
                      bool drawBackface = false)
 {
-    // Your implementation
+    // Ray–plane intersection
+    float denom = dot(n, ray.direction);
+
+    if (!drawBackface && denom >= 0) return;
+    if (abs(denom) < EPS) return;
+
+    float t = dot(circle.xyz - ray.origin, n) / denom;
+    if (t < EPS || t >= bestHit.distance) return;
+
+    // Intersection point
+    float3 p = ray.origin + t * ray.direction;
+
+    // Check if the point is inside the circle
+    float dist2 = dot(p - circle.xyz, p - circle.xyz);
+    if (dist2 > circle.w * circle.w) return;
+
+    // Valid hit
+    bestHit.distance = t;
+    bestHit.position = p;
+    bestHit.normal = normalize(n);
+    bestHit.material = material;
 }
 
 
@@ -97,5 +141,68 @@ void intersectCircle(Ray ray, inout RayHit bestHit, Material material, float4 ci
 // The cylinder center is given by cylinder.xyz, its radius is cylinder.w and its height is h
 void intersectCylinderY(Ray ray, inout RayHit bestHit, Material material, float4 cylinder, float h)
 {
-    // Your implementation
+    float3 rayDir = ray.direction;
+    float3 rayOriginLocal = ray.origin - cylinder.xyz;
+
+    float quadA = rayDir.x * rayDir.x + rayDir.z * rayDir.z;
+
+    if (abs(quadA) > EPSILON)
+    {
+        float quadB = 2.0 * (rayOriginLocal.x * rayDir.x + rayOriginLocal.z * rayDir.z);
+        float quadC = rayOriginLocal.x * rayOriginLocal.x
+            + rayOriginLocal.z * rayOriginLocal.z
+            - cylinder.w * cylinder.w;
+
+        float discriminant = quadB * quadB - 4.0 * quadA * quadC;
+
+        if (discriminant >= 0.0)
+        {
+            float sqrtDiscriminant = sqrt(discriminant);
+
+            float tNear = (-quadB - sqrtDiscriminant) / (2.0 * quadA);
+            float tFar = (-quadB + sqrtDiscriminant) / (2.0 * quadA);
+
+            float bestSideT = 1.#INF;
+
+            if (tNear > EPSILON && tNear < bestHit.distance)
+            {
+                float yAtNear = (ray.origin.y + tNear * rayDir.y) - cylinder.y;
+                if (yAtNear >= 0.0 && yAtNear <= h)
+                    bestSideT = tNear;
+            }
+
+            if (tFar > EPSILON && tFar < bestHit.distance && tFar < bestSideT)
+            {
+                float yAtFar = (ray.origin.y + tFar * rayDir.y) - cylinder.y;
+                if (yAtFar >= 0.0 && yAtFar <= h)
+                    bestSideT = tFar;
+            }
+
+            if (!isinf(bestSideT))
+            {
+                float3 hitPos = ray.origin + bestSideT * rayDir;
+
+                bestHit.distance = bestSideT;
+                bestHit.position = hitPos;
+
+                float3 surfaceNormal = normalize(float3(
+                    hitPos.x - cylinder.x,
+                    0.0,
+                    hitPos.z - cylinder.z
+                ));
+
+                if (dot(surfaceNormal, ray.direction) > 0.0)
+                    surfaceNormal = -surfaceNormal;
+
+                bestHit.normal = surfaceNormal;
+                bestHit.material = material;
+            }
+        }
+    }
+
+    float4 bottomCap = float4(cylinder.xyz, cylinder.w);
+    float4 topCap = float4(cylinder.xyz + float3(0.0, h, 0.0), cylinder.w);
+
+    intersectCircle(ray, bestHit, material, bottomCap, float3(0, -1, 0), true);
+    intersectCircle(ray, bestHit, material, topCap, float3(0, 1, 0), true);
 }

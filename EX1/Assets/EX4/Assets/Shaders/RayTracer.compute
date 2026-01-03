@@ -26,7 +26,7 @@ static const float EPS = 0.0001f;
 // Returns a the closest collision to the ray origin, i.e. the "Best Hit"
 RayHit intersectScene(Ray ray)
 {
-    switch(_SceneIndex)
+    switch (_SceneIndex)
     {
     case 1:
         return intersectScene1(ray);
@@ -45,8 +45,8 @@ RayHit intersectScene(Ray ray)
 
 float traceShadow(inout Ray ray)
 {
-    RayHit rayHit = intersectScene2(ray);
-    if(!isinf(rayHit.distance))
+    RayHit rayHit = intersectScene(ray);
+    if (!isinf(rayHit.distance))
     {
         return 0;
     }
@@ -56,8 +56,8 @@ float traceShadow(inout Ray ray)
 float3 shadeHit(Ray ray, RayHit hit)
 {
     float3 n = hit.normal;
-    float3 v = normalize(-ray.direction);          // surface to camera
-    float3 l = normalize(-_DirectionalLight.xyz);   // surface to light
+    float3 v = normalize(-ray.direction); // surface to camera
+    float3 l = normalize(-_DirectionalLight.xyz); // surface to light
 
     Ray shadowray = CreateRay(hit.position + EPS * hit.normal, normalize(-_DirectionalLight.xyz), 1);
     return traceShadow(shadowray) * blinnPhong(n, v, l, 50.0, hit.material.albedo);
@@ -70,16 +70,15 @@ float3 shadeMiss(Ray ray)
 }
 
 
-
 // Traces the given ray in the currently selected scene
 // Returns the color associated with the given ray
 // Edits the given ray accordingly
 float3 trace(inout Ray ray)
 {
     RayHit rayHit = intersectScene(ray);
-    float originalEnergy = ray.energy;
+    float3 originalEnergy = ray.energy;
 
-    if(isinf(rayHit.distance))
+    if (isinf(rayHit.distance))
     {
         ray.energy = 0;
         return shadeMiss(ray) * originalEnergy;;
@@ -89,7 +88,15 @@ float3 trace(inout Ray ray)
     float3 color = shadeHit(ray, rayHit) * originalEnergy;
 
     // Reflect ray for next bounce
-    reflectRay(ray, rayHit);
+
+    if (rayHit.material.refractiveIndex == -1)
+    {
+        reflectRay(ray, rayHit);
+    }
+    else
+    {
+        refractRay(ray, rayHit);
+    }
 
     return color;
 }
@@ -98,7 +105,7 @@ float3 trace(inout Ray ray)
 // Creates and traces a view ray for each image pixel, then sets the
 // associated pixel's color according to the ray's journey throughout the scene 
 [numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+void CSMain(uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
     Result.GetDimensions(width, height);
@@ -108,12 +115,12 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     Ray ray = CreateViewRay(uv);
 
-    float3 result = float3(0,0,0);
+    float3 result = float3(0, 0, 0);
 
     [loop]
     for (int i = 0; i < _BounceLimit; i++)
     {
-        float3 color = trace(ray);   // trace modifies the ray
+        float3 color = trace(ray); // trace modifies the ray
         result += color;
 
         // If the ray has no more energy, stop tracing

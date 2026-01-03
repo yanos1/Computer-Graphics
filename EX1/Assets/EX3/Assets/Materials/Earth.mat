@@ -46,7 +46,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Ambient: 0.222
-    - _BumpScale: 17.4
+    - _BumpScale: 70.9
     - _Shininess: 100
     m_Colors:
     - _AtmosphereColor: {r: 0.8, g: 0.85, b: 1, a: 1}

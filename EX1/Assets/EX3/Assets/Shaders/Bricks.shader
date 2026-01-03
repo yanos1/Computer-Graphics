@@ -57,8 +57,8 @@ Shader "CG/Bricks"
                 output.pos = UnityObjectToClipPos(input.vertex);
                 output.uv = input.uv;
 
-                output.normal = UnityObjectToWorldNormal(input.normal);
-                output.tangent = UnityObjectToWorldDir(input.tangent.xyz);
+                output.normal = normalize(UnityObjectToWorldNormal(input.normal));
+                output.tangent = normalize(UnityObjectToWorldDir(input.tangent.xyz));
                 output.worldPos = mul(unity_ObjectToWorld, input.vertex).xyz;
 
                 return output;

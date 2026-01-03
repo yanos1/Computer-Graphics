@@ -77,7 +77,7 @@
                 bumpData.heightMap = _HeightMap;
                 bumpData.du = _HeightMap_TexelSize.x;
                 bumpData.dv = _HeightMap_TexelSize.y;
-                bumpData.bumpScale = _BumpScale / 10;
+                bumpData.bumpScale = _BumpScale / 10000;
 
                 // Bumped normal
                 float3 bumpedNormal = getBumpMappedNormal(bumpData);

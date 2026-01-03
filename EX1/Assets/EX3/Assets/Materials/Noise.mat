@@ -26,7 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _FillWithRed: 0
-    - _NoiseScale: 8.4
+    - _NoiseScale: 1
     - _NoiseType: 1
     - _isToggled: 0
     m_Colors: []
